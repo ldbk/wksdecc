@@ -8,7 +8,8 @@ Depends:
 Imports:
 	methods,
 	dplyr,
-	pander
+	pander,
+	knitr
 Suggests:
 	rmarkdown,
 	readxl
