@@ -1,0 +1,24 @@
+---
+title: "Export fishframe data to wksdecc format"
+author: "WKSDECC people"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Export data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r,echo=F}
+knitr::opts_chunk$set(dev='png')
+```
+
+#WKSDECC format
+
+Some words and a figure.
+
+#An example
+
+Sole in the 27.4 area.
+
+
