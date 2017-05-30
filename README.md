@@ -1,7 +1,8 @@
-# WKSDECC tools
+#WKSDECC tools
+
 A package to export fishframe data to a new sampling format and more.
 
-# Installation
+#Installation
 
 In a R console:
 
@@ -11,6 +12,6 @@ In a R console:
 
 `install_github("ldbk/wksdecc")`
 
-# Description
+#Description
 
 Some words.
