@@ -2,11 +2,13 @@ Package: WKSDECC
 Title: Fishframe to another format
 Version: 0.1
 Description: export fishframe data to another format and more.
+VignetteBuilder: knitr
 Depends: 
 	R (>= 3.3.0)
 Imports:
 	methods,
-	dplyr
+	dplyr,
+	pander
 Suggests:
 	rmarkdown,
 	readxl

@@ -7,7 +7,9 @@ Depends:
 	R (>= 3.3.0)
 Imports:
 	methods,
-	dplyr
+	dplyr,
+	pander,
+	knitr
 Suggests:
 	rmarkdown,
 	readxl

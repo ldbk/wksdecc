@@ -11,14 +11,342 @@ vignette: >
 
 ```{r,echo=F}
 knitr::opts_chunk$set(dev='png')
+library(WKSDECC)
+library(dplyr)
+library(pander)
 ```
 
 #WKSDECC format
 
 Some words and a figure.
 
-#An example
+```{r,echo=T}
+
+```
+
+#Sole in the 27.4 
 
 Sole in the 27.4 area.
 
+##France
 
+###Sampling design
+
+A description of the sampling design.
+Sampling at sea and on port.
+
+###Sampling at sea
+
+At sea sampling from a vessel list, then the voyage of the vessel, part of the hauls are sampled.
+
+- strata 1: quarter
+- PSU : vessel x day
+
+Sampling plan by quarter/area/metier. Vessels are selected according to the
+area/metier strata, then some fishing operation for a trip are sampled at sea if it matches the strata.
+For port sampling, the trip is sampled if it matches the area/metier strata
+conditions.
+
+####Sampling at port
+
+###Fishframe data
+
+France data 
+
+- COSTcore package:
+
+```{r,echo=T}
+#read the sole 27.4 data for 2016
+pathsol<-"/home/moi/ifremer/analyses_stock_2017/WGNSSK/sol.27.4/data/"
+load(paste0(pathsol,"CSr2016.rdata"))
+load(paste0(pathsol,"CLr2016.rdata"))
+load(paste0(pathsol,"CEr2016.rdata"))
+#read sampling plan
+planobsmer<-read.csv2("/home/moi/ifremer/data/wao/plan_OBSMER_2016.csv")
+planobsvente<-read.csv2("/home/moi/ifremer/data/wao/plan_OBSVENTE_2016.csv")
+#remove COSTcore dependency : cost object to dataframe
+cl<-CLr@cl
+ce<-CEr@ce
+tr<-CSr@tr
+hh<-CSr@hh
+sl<-CSr@sl
+hl<-CSr@hl
+ca<-CSr@ca
+```
+```{r exportcsv,echo=F,include=F,eval=F}
+
+require(digest)
+anonymize <- function(x, algo="crc32"){
+	unq_hashes <- vapply(unique(x), function(object) digest(object,algo=algo),
+				     FUN.VALUE="", USE.NAMES=TRUE)
+  	unname(unq_hashes[x])
+}
+CSr@tr$vslId<- anonymize(as.character(CSr@tr$vslId))
+
+write.table(CLr@cl,file="cl.csv",sep=";",row.names=F,col.names=T)
+write.table(CEr@ce,file="ce.csv",sep=";",row.names=F,col.names=T)
+write.table(CSr@tr,file="tr.csv",sep=";",row.names=F,col.names=T)
+write.table(CSr@hh,file="hh.csv",sep=";",row.names=F,col.names=T)
+write.table(CSr@sl,file="sl.csv",sep=";",row.names=F,col.names=T)
+write.table(CSr@hl,file="hl.csv",sep=";",row.names=F,col.names=T)
+write.table(CSr@ca,file="ca.csv",sep=";",row.names=F,col.names=T)
+```
+
+Generic version: each table (cl, ce, tr, hh, sl, hl, ca) in a text file (; sep) with a header.
+
+```{r,echo=T}
+pathdatacsv<-"/home/moi/ifremer/WKSDECC/datacsv/"
+cl<-read.table(paste0(pathdatacsv,"cl.csv"),sep=";",header=T)
+ce<-read.table(paste0(pathdatacsv,"ce.csv"),sep=";",header=T)
+tr<-read.table(paste0(pathdatacsv,"tr.csv"),sep=";",header=T)
+hh<-read.table(paste0(pathdatacsv,"hh.csv"),sep=";",header=T)
+sl<-read.table(paste0(pathdatacsv,"sl.csv"),sep=";",header=T)
+hl<-read.table(paste0(pathdatacsv,"hl.csv"),sep=";",header=T)
+ca<-read.table(paste0(pathdatacsv,"ca.csv"),sep=";",header=T)
+```
+
+This report uses the 7 tables from the fishframe format.
+
+
+
+###DEsign table
+
+We call it DE. Two design: one for at sea sampling (OBSMER program), 
+one for port sampling (OBSVENTE program).
+This table is not build using fishframe information.
+
+```{r DE,echo=T}
+	DE<-createdf("Design",nbrow=2)
+	DE<-DE%>%mutate(designID=c(1,2),
+	      recType="DE",
+	      sampScheme=c("obsmer","obsvente"),
+	      sampStrata="",
+	      hierarchy=c("",
+			  ""))
+```
+```{r DEtab,echo=T}
+	pander(DE)
+```
+
+###Sampling Event table
+
+We call it SE. The table use the information from the hh and tr table from fishframe sampling
+table (CS object), and from the population data related to effort (CE object).
+A sampling event is related to a trip for port sampling and for hauls for at sea sampling.
+
+```{r SE,echo=T}
+###########################################################
+#tr and hh tables are merged
+hh<-hh%>%mutate(trpCode=as.character(trpCode))
+hhtr<-left_join(hh,tr)%>%
+	mutate(month=as.numeric(substr(date,6,7)))
+
+#build sampling event population data info using CE
+nbtruc<-ce%>%group_by(harbour,month,foCatEu6)%>%summarise(nbtr=sum(trpNum),
+						      nbfo=sum(foNum),
+						      nbday=sum(daysAtSea))%>%ungroup()
+
+hhtr<-left_join(hhtr,nbtruc)
+#split by at sea vs port
+hhsea<-hhtr%>%filter(sampType=="S")%>%mutate()
+hhport<-hhtr%>%filter(sampType=="M")
+SEatsea<-createdf("Sampling Event",nbrow=nrow(hhsea))
+SEport<-createdf("Sampling Event",nbrow=nrow(hhport))
+#at sea
+SEatsea<-SEatsea%>%mutate(sampEventID=paste(hhsea$trpCode,hhsea$staNum),
+			  designID=1,
+			  recType="SE",
+			  seYear=substr(hhsea$date,1,4),
+			  sampDate=as.character(hhsea$date),
+			  sampTime=as.character(hhsea$time),
+			  sampCtry="FRA",
+			  sampUnit="quarter*area*port*metier*vessel",
+			  sampMeth="Observer",
+			  seUnitTotal=as.character(hhsea$nbtr),
+			  seUnitSampled="1",
+			  selectionMethod="adhoc"
+			  )
+SEport<-SEport%>%mutate(sampEventID=paste(hhport$trpCode,hhport$staNum),
+			  designID=2,
+			  recType="SE",
+			  seYear=substr(hhport$date,1,4),
+			  sampDate=as.character(hhport$date),
+			  sampTime=as.character(hhport$time),
+			  sampCtry="FRA",
+			  sampUnit="quarter*area*port*metier*vessel",
+			  sampMeth="Observer",
+			  seUnitTotal=as.character(hhport$nbtr),
+			  seUnitSampled="1",
+			  selectionMethod="adhoc"
+			  )
+SE<-rbind(SEatsea,SEport)%>%mutate(seSampProb=as.numeric(seUnitSampled)/as.numeric(seUnitTotal))
+```
+
+```{r SEtab,echo=T}
+ pander(head(SE))
+```
+
+###VEssel table
+
+VE table. Hard to fill without external information : the number of vessels is not recorded in CE table.
+
+```{r VE,echo=T}
+########################################################
+#Vessel table
+vesseltab<-hhtr%>%select(vslId,trpCode,staNum,vslLen,vslPwr,vslSize)%>%
+			distinct()%>%mutate(sampEventID=paste(trpCode,staNum))%>%
+			select(-trpCode,-staNum)
+VE<-createdf("Vessel",nbrow=nrow(vesseltab))
+#pick value matching names of the vessel table
+VE<-pickvalue(VE,vesseltab)
+```
+```{r VEtab,echo=T}
+ pander(head(VE))
+```
+
+
+### VOyage table
+
+VO table. Some cosmetic information are not available in the CS and CE object
+(departure and arrival information mainly). It's a simple version of the tr
+table.
+
+```{r VO,echo=T}
+	VOinit<-hhtr%>%mutate(voyageID=trpCode,
+			  sampEventID=paste(trpCode,staNum),
+			  vslTblID=vslId,
+			  recType="VO",
+			  arvLoc=harbour,
+			  voyageTotal=nbtr,
+			  voyageSampled=1,
+			  voyageSampProb=voyageSampled/voyageTotal
+			)
+	VO<-createdf("Voyage",nbrow=nrow(VOinit))
+	#pick value matching names of the sl table
+	VO<-pickvalue(VO,VOinit)
+```
+```{r VOtab,echo=T}
+ pander(head(VO))
+```
+
+### Fishing Operation table
+
+FO table. Very similar to the hh table.
+
+```{r FO,echo=T}
+	FOinit<-hhtr%>%mutate(foID=staNum,
+			      voyageID=trpCode,
+			      foDate=date,
+			      foTime=time,
+			      recType="FO",
+			      subRect=NA,
+			      aggLev=as.character(aggLev),
+			      foTotal=nbfo,
+			      foSampled=1,
+			      foSampProb=foSampled/foTotal)
+	FO<-createdf("Fishing Operation",nbrow=nrow(FOinit))
+	#pick value matching names of the sl table
+	FO<-pickvalue(FO,FOinit)
+```
+
+```{r FOtab,echo=T}
+ pander(head(FO))
+```
+
+### SAmple table
+
+SA table. Very similar to the sl table.
+
+```{r SA,echo=T}
+	#tr and hh tables are merged
+	sl<-sl%>%mutate(trpCode=as.character(trpCode))
+	slhh<-left_join(sl,hh)
+	
+	SAinit<-slhh%>%mutate(sampID=paste(trpCode,staNum),
+			      foID=staNum,
+			      voyageID=trpCode,
+			      recType="SA",
+			      commSpp="SOL",
+			      sppName=spp,
+			      sampWt=subSampWt,
+			      unitTotal=wt,
+			      unitSampled=sampWt,
+			      unitSampProb=unitSampled/unitTotal,
+			      concurrent="yes")
+	SA<-createdf("Sample",nbrow=nrow(SAinit))
+	#pick value matching names of the sl table
+	SA<-pickvalue(SA,SAinit)
+```
+```{r SAtab,echo=T}
+ pander(head(SA))
+```
+
+### Frequency Measure table
+
+FM table: similar to the hl table.
+
+```{r FM,echo=T}
+	#tr and hh tables are merged
+	hl<-hl%>%mutate(trpCode=as.character(trpCode))
+	hlsl<-left_join(hl,sl)
+	
+	FMinit<-hlsl%>%mutate(freqMesID=paste(1:nrow(hlsl)),
+			      sampID=paste(trpCode,staNum),
+			      foID=staNum,
+			      voyageID=trpCode,
+			      recType="FM",
+			      commSpp="SOL",
+			      sppName=spp)
+
+	FM<-createdf("Frequency Measure",nbrow=nrow(FMinit))
+	#pick value matching names of the sl table
+	FM<-pickvalue(FM,FMinit)
+	#add info
+	FM<-FM%>%group_by(sampID)%>%mutate(fishSampled=sum(lenNum))%>%ungroup()
+	#number of fish total should be computed but later (multiple regression
+	#using sampWt and number of fish)
+
+```
+
+```{r FMtab,echo=T}
+ pander(data.frame(FM[1:5,]))
+```
+
+### Biological Variable table
+
+BV table: similar to the ca table.
+
+```{r BV,echo=T}
+	#tr and hh tables are merged
+	hl<-hl%>%mutate(trpCode=as.character(trpCode))
+	hlsl<-left_join(hl,sl)
+	
+	FMinit<-hlsl%>%mutate(freqMesID=paste(1:nrow(hlsl)),
+			      sampID=paste(trpCode,staNum),
+			      foID=staNum,
+			      voyageID=trpCode,
+			      recType="FM",
+			      commSpp="SOL",
+			      sppName=spp)
+
+	FM<-createdf("Frequency Measure",nbrow=nrow(FMinit))
+	#pick value matching names of the sl table
+	FM<-pickvalue(FM,FMinit)
+	#add info
+	FM<-FM%>%group_by(sampID)%>%mutate(fishSampled=sum(lenNum))%>%ungroup()
+	#number of fish total should be computed but later (multiple regression
+	#using sampWt and number of fish)
+```
+
+```{r BVtab,echo=T}
+```
+
+### XX table
+
+XX table: similar to the hl table.
+
+```{r XX,echo=T}
+```
+
+```{r XXtab,echo=T}
+```
