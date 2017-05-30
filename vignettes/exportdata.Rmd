@@ -107,6 +107,29 @@ ca<-read.table(paste0(pathdatacsv,"ca.csv"),sep=";",header=T)
 
 This report uses the 7 tables from the fishframe format.
 
+```{r,echo=T}
+	pander(head(cl))
+```
+```{r,echo=T}
+	pander(head(ce))
+```
+```{r,echo=T}
+	pander(head(tr))
+```
+```{r,echo=T}
+	pander(head(hh))
+```
+```{r,echo=T}
+	pander(head(sl))
+```
+```{r,echo=T}
+	pander(head(hl))
+```
+```{r,echo=T}
+	pander(head(ca))
+```
+
+
 
 
 ###DEsign table
