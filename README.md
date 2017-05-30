@@ -1,2 +1,0 @@
-# wksdecc
-WKSDECC dev
